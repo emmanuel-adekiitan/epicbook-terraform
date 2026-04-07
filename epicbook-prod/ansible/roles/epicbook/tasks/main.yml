@@ -1,0 +1,98 @@
+---
+- name: Install networking and database tools
+  apt:
+    # Removed 'npm' because it's already provided by the nodejs package
+    name: [git, socat, mysql-client]
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Ensure web root exists with correct permissions
+  file:
+    path: /var/www/epicbook
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: '0755'
+  become: yes
+
+- name: Clone EpicBook Repository
+  git:
+    repo: "{{ app_repo }}"  # Use the variable here!
+    dest: "{{ app_path }}"  # Use the variable here!
+    version: main
+    force: yes
+
+- name: Deploy files to application directory
+  copy:
+    src: /tmp/epicbook_repo/
+    dest: /var/www/epicbook/
+    remote_src: yes
+    owner: ubuntu
+    group: ubuntu
+  become: yes
+
+- name: Install Node.js dependencies
+  npm:
+    path: /var/www/epicbook
+    state: present
+
+- name: Ensure correct ownership of node_modules
+  file:
+    path: /var/www/epicbook
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    recurse: yes
+  become: yes
+
+
+- name: Create .env file
+  copy:
+    dest: /var/www/epicbook/.env
+    content: |
+      PORT={{ app_port }}
+      DB_HOST={{ db_host }}
+      DB_USER={{ db_user }}
+      DB_PASS={{ db_pass }}
+      DB_NAME={{ db_name }}
+    owner: ubuntu
+    group: ubuntu
+    mode: '0600'
+    
+- name: Start EpicBook with PM2
+  shell: |
+    pm2 delete epicbook || true
+    # Added --cwd and used server.js directly in the path
+    pm2 start /var/www/epicbook/server.js --name epicbook --cwd /var/www/epicbook
+    pm2 save
+  args:
+    executable: /bin/bash
+  become: yes
+  become_user: ubuntu
+
+- name: Setup Port Relay (The "Localhost" Trick)
+  shell: |
+    pkill -f "socat TCP-LISTEN:3306" || true
+    nohup socat TCP-LISTEN:3306,fork,bind=127.0.0.1 TCP:10.0.2.74:3306 > /dev/null 2>&1 &
+  become: yes
+  async: 10
+  poll: 0
+
+- name: Start EpicBook with PM2
+  shell: |
+    pm2 delete epicbook || true
+    pm2 start server.js --name epicbook
+    pm2 save
+  args:
+    chdir: /var/www/epicbook
+    executable: /bin/bash
+  become: yes
+  become_user: ubuntu
+  environment:
+    PORT: 3000
+    DB_HOST: "127.0.0.1"
+    DB_USER: "{{ db_user }}"
+    DB_PASS: "{{ db_pass }}"
+    DB_NAME: "epicbook"
+    

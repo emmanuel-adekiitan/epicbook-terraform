@@ -1,0 +1,26 @@
+---
+- name: Update apt and install baseline dependencies
+  apt:
+    update_cache: yes
+    name: [git, curl, python3-pip, ca-certificates, gnupg]
+    state: present
+
+- name: Add Node.js 20.x repository
+  shell: curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+  args:
+    creates: /etc/apt/sources.list.d/nodesource.list # Prevents redundant runs
+
+- name: Install Node.js
+  apt:
+    name: nodejs
+    state: present
+    update_cache: yes
+
+- name: Create 1GB Swap file
+  shell: |
+    fallocate -l 1G /swapfile
+    chmod 600 /swapfile
+    mkswap /swapfile
+    swapon /swapfile
+  args:
+    creates: /swapfile

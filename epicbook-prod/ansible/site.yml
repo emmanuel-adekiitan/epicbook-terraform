@@ -1,0 +1,18 @@
+---
+- name: Deploy EpicBook Production
+  hosts: web
+  become: yes
+  vars_files:
+    - group_vars/all.yml
+    - group_vars/db_vars.yml  # <--- Add this line here!
+  roles:
+    - common
+    - epicbook
+    - nginx
+
+  handlers:
+    - name: Restart Nginx
+      service:
+        name: nginx
+        state: restarted
+

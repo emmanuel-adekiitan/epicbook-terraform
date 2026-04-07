@@ -1,0 +1,10 @@
+# .gitignore
+node_modules/
+.env
+*.pem
+terraform.tfstate*
+.terraform/
+ansible/group_vars/db_vars.yml 
+terraform.tfvars*
+epicbook-prod/terraform/aws/terraform.tfvars*
+epicbook-prod/ansible/group_vars/all.yml
